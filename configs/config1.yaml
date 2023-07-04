@@ -1,0 +1,65 @@
+seed: 18
+verbose: 2
+
+# Data params
+n_epochs: 400
+n_splits: 10
+fold: 0
+train:
+    batch_size: 512
+val:
+    batch_size: 512
+
+max_len_frames: 384
+max_len_phrase: 43
+
+# Model params
+dim: 192
+drop_rate: 0.2
+ksize: 17
+
+loss:
+    name: 'SCCE_loss'
+    label_smoothing: 0 
+    
+loss:
+    name: 'SCCE_loss_with_smoothing'
+    label_smoothing: 0.2
+    
+scheduler:
+    name: 'cosine_cycle'
+    warmup: 0
+    lr_min: 1e-6
+    lr_max: 1e-3
+    wd_ratio: 0.1
+    num_cycles: 0.5
+
+# scheduler:
+#     name: 'one_cycle'
+#     warmup: 0
+#     lr_min: 1e-6
+#     lr_max: 1e-3
+#     weight_decay: 0.1
+#     decay_type: 'cosine'
+    
+optimizer:
+    name: 'adam'
+  
+# optimizer:
+#     name: 'radam'
+#     sma_threshold: 4
+#     sync_period: 5
+
+callbacks:
+    - 'logger_cb'
+    - 'ckpt_cb'
+    - 'lr_cb'
+    - 'wd_cb'
+    
+
+# Output
+output_dir: 'results'
+experiment: 'config1'
+
+
+    
