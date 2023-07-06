@@ -5,7 +5,7 @@ class ECA(tf.keras.Model):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.global_average = tf.keras.layers.GlobalAveragePooling1D()
-        self.conv = tf.keras.layers.Conv1D(1, CFG['ksize'], strides=1, padding="same", use_bias=False) #5?
+        self.conv = tf.keras.layers.Conv1D(1, 5, strides=1, padding="same", use_bias=False) #5?
     
     def call(self, inputs, mask=None):
         nn = self.global_average(inputs, mask=mask)
@@ -50,9 +50,9 @@ class Conv1DBlock(tf.keras.Model):
         x = self.causal_dw_conv1d(x)
         x = self.batch_norm(x)
         x = self.eca(x)
-        x = self.dropout(x)
         x = self.dense2(x)
-        # x = self.add([x, inp1]) # skip connection
+        x = self.dropout(x)
+        # x = self.add([x, inp1])
         return x
     
 def scaled_dot_product_attention(q, k, v, mask):
@@ -133,94 +133,139 @@ class PositionalEmbedding(tf.keras.Model):
         x *= tf.math.sqrt(tf.cast(CFG['dim'], DTYPE)) # remove casting?
         x = x + self.pos_encoding[tf.newaxis, :length, :]
         return x
-    
+
 class TransformerBaseBlock(tf.keras.Model):
     def __init__(self):
         super().__init__()
-    
-    def build(self, input_shape):
-        self.bn_1s = []
-        self.mhas = []
-        self.bn_2s = []
-        self.mlps = []
-        for i in range(CFG['len_transformer_base_block']):
-            self.bn_1s.append(tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum']))
-            self.mhas.append(MultiHeadAttention())
-            self.bn_2s.append(tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum']))
-            self.mlps.append(tf.keras.Sequential([
-                tf.keras.layers.Dense(CFG['dim']*CFG['expand'], activation=CFG['activation'], use_bias=False),
-                tf.keras.layers.Dropout(CFG['drop_rate']),
-                tf.keras.layers.Dense(CFG['dim'], use_bias=False),
-            ]))
-        
-    def call(self, x):
-        for bn_1, mha, bn_2, mlp in zip(self.bn_1s, self.mhas, self.bn_2s, self.mlps):
-            x = bn_1(x + mha(x, x, x))
-            x = bn_2(x + mlp(x))
-        return x
+        self.batch_norm1 = tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum'])
+        # self.layer_norm1 = tf.keras.layers.LayerNormalization(dtype=tf.bfloat16)
+        self.mha = MultiHeadAttention()
+        self.dropout1 = tf.keras.layers.Dropout(CFG['drop_rate'], noise_shape=(None,1,1))
+        self.add1 = tf.keras.layers.Add()
 
+        self.batch_norm2 = tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum'])
+        # self.layer_norm2 = tf.keras.layers.LayerNormalization(dtype=tf.bfloat16)
+
+        self.dense1 = tf.keras.layers.Dense(CFG['dim']*CFG['expand'], use_bias=False, activation=CFG['activation'])
+        self.dense2 = tf.keras.layers.Dense(CFG['dim'], use_bias=False)
+        self.dropout2 = tf.keras.layers.Dropout(CFG['drop_rate'], noise_shape=(None,1,1))
+        self.add2 = tf.keras.layers.Add()
+        
+    def call(self, input):
+        x = self.batch_norm1(input)
+        # x = self.layer_norm1(input)
+        x = self.mha(x, x, x, mask=None)
+        x = self.dropout1(x)
+        x = self.add1([x, input])
+
+        # Feed-forward 
+        base_out = x
+        x = self.batch_norm2(x)
+        # x = self.layer_norm2(x)
+        x = self.dense1(x)
+        x = self.dense2(x)
+        x = self.dropout2(x)
+        x = self.add2([x, base_out])
+        return x
+    
 def create_look_ahead_mask(size):
     mask = tf.linalg.band_part(tf.ones((size, size)), -1, 0)
     mask = tf.cast(mask, DTYPE)
     return mask  # (seq_len, seq_len)
-
+    
 class TransformerCrossBlock(tf.keras.Model):
     def __init__(self):
         super().__init__()
-    
-    def build(self, input_shape):
-        self.mha_inp = MultiHeadAttention()
-        self.bn_inp = tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum'])
-                              
-        self.bn_1s = []
-        self.mhas = []
-        self.bn_2s = []
-        self.mlps = []
-        for i in range(CFG['len_transformer_cross_block']):
-            self.bn_1s.append(tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum']))
-            self.mhas.append(MultiHeadAttention())
-            self.bn_2s.append(tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum']))
-            self.mlps.append(tf.keras.Sequential([
-                tf.keras.layers.Dense(CFG['dim']*CFG['expand'], activation=CFG['activation'], use_bias=False),
-                tf.keras.layers.Dropout(CFG['drop_rate']),
-                tf.keras.layers.Dense(CFG['dim'], use_bias=False),
-            ]))
-    
-    def call(self, enc_output, x):
-        mask = create_look_ahead_mask(tf.shape(x)[1]) # Create mask for cross mha
+        # self.layer_norm = tf.keras.layers.LayerNormalization(dtype=tf.bfloat16)        
+        self.mha1 = MultiHeadAttention()
+        self.dropout1 = tf.keras.layers.Dropout(CFG['drop_rate'], noise_shape=(None,1,1))
+        self.add1 = tf.keras.layers.Add()
+
+        self.batch_norm1 = tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum'])
+        self.batch_norm2 = tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum'])
+        # self.layer_norm1 = tf.keras.layers.LayerNormalization(dtype=tf.bfloat16)        
+        # self.layer_norm2 = tf.keras.layers.LayerNormalization(dtype=tf.bfloat16)
+        self.mha2 = MultiHeadAttention()
+        self.dropout2 = tf.keras.layers.Dropout(CFG['drop_rate'], noise_shape=(None,1,1))
+        self.add2 = tf.keras.layers.Add()
+
+        self.batch_norm3 = tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum'])
+        # self.layer_norm3 = tf.keras.layers.LayerNormalization(dtype=tf.bfloat16)  
+
+        self.dense1 = tf.keras.layers.Dense(CFG['dim']*CFG['expand'], use_bias=False, activation=CFG['activation'])
+        self.dense2 = tf.keras.layers.Dense(CFG['dim'], use_bias=False)
+        self.dropout3 = tf.keras.layers.Dropout(CFG['drop_rate'], noise_shape=(None,1,1))
+        self.add3 = tf.keras.layers.Add()
         
-        x = self.bn_inp(x + self.mha_inp(x, x, x, mask=mask))
+        self.batch_norm4 = tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum']) 
+        # self.layer_norm4 = tf.keras.layers.LayerNormalization(dtype=tf.bfloat16)  
         
-        # Iterate input over transformer blocks
-        for bn_1, mha, bn_2, mlp in zip(self.bn_1s, self.mhas, self.bn_2s, self.mlps):
-            x = bn_1(x + mha(x, enc_output, enc_output))
-            x = bn_2(x + mlp(x))
+    def call(self, enc_output, x2):
+        mask = create_look_ahead_mask(tf.shape(x2)[1]) # Create mask
+        
+        # Base mha
+        # x = self.batch_norm(inp2)
+        # x2 = self.layer_norm(x2)
+        x = self.mha1(q=x2, k=x2, v=x2, mask=mask)
+        x = self.dropout1(x)
+        x = self.add1([x, x2])
+        
+        # Cross mha
+        base_out = x
+        x = self.batch_norm1(x)
+        y = self.batch_norm2(enc_output)
+        # x = self.layer_norm1(x)
+        # y = self.layer_norm2(enc_output)
+        x = self.mha2(q=x, k=y, v=y, mask=None)
+        x = self.dropout2(x)
+        x = self.add2([x, x2])
+        # x = self.add2([x, base_out])
+
+        # Feed-forward
+        cross_out = x
+        x = self.batch_norm3(x)
+        # x = self.layer_norm3(x)
+        x = self.dense1(x)
+        x = self.dense2(x)
+        x = self.dropout3(x)
+        # x = self.add3([x, x2])
+        x = self.add3([x, cross_out])
+
+        x = self.batch_norm4(x)
+        # x = self.layer_norm4(x)
         return x
-    
+
 class Encoder(tf.keras.Model):
     def __init__(self):
         super().__init__(name='encoder')
-        
-    def build(self, input_shape):
         self.mask_frames = tf.keras.layers.Masking(CFG['pad_frames'], input_shape=(None, CFG['max_len_frames'] ,CHANNELS))
-        self.mlp = tf.keras.layers.Dense(CFG['dim'], use_bias=False)
-        self.bn_inp =  tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum'])
+        self.dense = tf.keras.layers.Dense(CFG['dim'], use_bias=False)
+        self.batch_norm =  tf.keras.layers.BatchNormalization(momentum=CFG['bn_momentum'])
+        self.conv1d_block1 = Conv1DBlock()
+        self.conv1d_block2 = Conv1DBlock()
+        self.conv1d_block3 = Conv1DBlock()
+        self.transformer_base_block1 = TransformerBaseBlock()
+
+        self.conv1d_block4 = Conv1DBlock()
+        self.conv1d_block5 = Conv1DBlock()
+        self.conv1d_block6 = Conv1DBlock()
+        self.transformer_base_block2 = TransformerBaseBlock()
         
-        self.conv_blocks = [] # [Conv1DBlock() for _ in range(CFG['len_conv1d_blocks_encoder'])]
-        self.transformer_base_blocks = []
-        for i in range(CFG['n_encoder_blocks']):
-            self.conv_blocks.append([Conv1DBlock() for _ in range(CFG['len_conv1d_blocks_encoder'])])
-            self.transformer_base_blocks.append(TransformerBaseBlock())
-            
     def call(self, x):
         x = self.mask_frames(x)
-        x = self.mlp(x)
-        x = self.bn_inp(x)
+        x = self.dense(x)
+        x = self.batch_norm(x)
         
-        for conv_block, transformer_base_block in zip(self.conv_blocks, self.transformer_base_blocks):
-            for conv in conv_block:
-                x = conv(x)
-            x = transformer_base_block(x)
+        # Conv1D + transformer block
+        x = self.conv1d_block1(x)
+        x = self.conv1d_block2(x)
+        x = self.conv1d_block3(x)
+        x = self.transformer_base_block1(x)
+    
+        x = self.conv1d_block4(x)
+        x = self.conv1d_block5(x)
+        x = self.conv1d_block6(x)
+        x = self.transformer_base_block2(x)
         return x 
 
 class Decoder(tf.keras.Model):

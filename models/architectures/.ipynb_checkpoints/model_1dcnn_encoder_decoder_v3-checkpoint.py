@@ -189,11 +189,11 @@ class TransformerCrossBlock(tf.keras.Model):
     def call(self, enc_output, x):
         mask = create_look_ahead_mask(tf.shape(x)[1]) # Create mask for cross mha
         
-        x = self.bn_inp(x + self.mha_inp(x, x, x))
+        x = self.bn_inp(x + self.mha_inp(x, x, x, mask=mask))
         
         # Iterate input over transformer blocks
         for bn_1, mha, bn_2, mlp in zip(self.bn_1s, self.mhas, self.bn_2s, self.mlps):
-            x = bn_1(x + mha(x, enc_output, enc_output, mask=mask))
+            x = bn_1(x + mha(x, enc_output, enc_output))
             x = bn_2(x + mlp(x))
         return x
     
