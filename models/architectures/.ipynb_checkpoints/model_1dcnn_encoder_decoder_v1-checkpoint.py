@@ -1,8 +1,5 @@
 import tensorflow as tf
-from ...utils.preprocessing.get_tfrecords import *
-from ..losses.losses import *
-
-DTYPE = tf.bfloat16
+from ...utils.preprocessing.preprocess_features import *
 
 class ECA(tf.keras.Model):
     def __init__(self, kernel_size=5, **kwargs):
@@ -241,9 +238,9 @@ class TransformerCrossBlock(tf.keras.Model):
         return x
 
 class Encoder(tf.keras.Model):
-    def __init__(self, dim, drop_rate, ksize):
+    def __init__(self, dim, drop_rate, ksize, mask_value, max_len_frames):
         super().__init__(name='encoder')
-        self.mask_frames = tf.keras.layers.Masking(mask_value=PAD_FRAMES, input_shape=(None, MAX_LEN_FRAMES,CHANNELS))
+        self.mask_frames = tf.keras.layers.Masking(mask_value, input_shape=(None, max_len_frames ,CHANNELS))
         self.dense = tf.keras.layers.Dense(dim, use_bias=False)
         self.batch_norm =  tf.keras.layers.BatchNormalization(momentum=0.95)
         self.conv1d_block1 = Conv1DBlock(dim,ksize,drop_rate=drop_rate)
@@ -274,10 +271,10 @@ class Encoder(tf.keras.Model):
         return x 
 
 class Decoder(tf.keras.Model):
-    def __init__(self, dim, drop_rate, ksize):
+    def __init__(self, dim, drop_rate, ksize, mask_value, max_len_phrase, vocab_size):
         super().__init__(name='decoder')
-        self.mask_phrase = tf.keras.layers.Masking(mask_value=PAD_PHRASE, input_shape=(None, MAX_LEN_PHRASE))
-        self.positional_embedding = PositionalEmbedding(vocab_size=NUM_CLASSES, d_model=dim)
+        self.mask_phrase = tf.keras.layers.Masking(mask_value, input_shape=(None, max_len_phrase))
+        self.positional_embedding = PositionalEmbedding(vocab_size, d_model=dim)
         self.transformer_cross_block = TransformerCrossBlock(dim, expand=2)
     
     def call(self, encoder_out, x2):
@@ -286,13 +283,21 @@ class Decoder(tf.keras.Model):
         x = self.transformer_cross_block(encoder_out,x)
         return x
 
-def get_model(dim=192, drop_rate=0, ksize=17):
+def get_model(CFG, dtype):
+    global DTYPE
+    DTYPE = dtype
+    dim, drop_rate, ksize = CFG['dim'], CFG['drop_rate'], CFG['ksize']
+    
+    PAD_FRAMES, PAD_PHRASE = CFG['pad_frames'], CFG['pad_phrase']
+    MAX_LEN_FRAMES, MAX_LEN_PHRASE = CFG['max_len_frames'], CFG['max_len_phrase']
+    NUM_CLASSES = CFG['num_classes']
+    
     inp1 = tf.keras.layers.Input([MAX_LEN_FRAMES, CHANNELS], dtype=tf.float32, name='frames')
     inp2 = tf.keras.layers.Input([MAX_LEN_PHRASE], dtype=tf.int32, name='phrase')
 
     # Encoder and decoder step
-    encoder_out = Encoder(dim, drop_rate, ksize)(inp1)
-    decoder_out = Decoder(dim, drop_rate, ksize)(encoder_out, inp2)
+    encoder_out = Encoder(dim, drop_rate, ksize, PAD_FRAMES, MAX_LEN_FRAMES)(inp1)
+    decoder_out = Decoder(dim, drop_rate, ksize, PAD_PHRASE, MAX_LEN_PHRASE, NUM_CLASSES)(encoder_out, inp2)
 
     # Final feed-forward
     out = tf.keras.layers.Dense(dim*2,activation=None, name='pre_classifier')(decoder_out)

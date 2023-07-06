@@ -38,26 +38,27 @@ POINT_LANDMARKS = LIP + LHAND + RHAND + NOSE + REYE + LEYE #+POSE
 NUM_NODES = len(POINT_LANDMARKS)
 CHANNELS = 6*NUM_NODES
 
-################## PARAMS phrase #######################
+################## PARAMS phrase table #######################
 
-CHAR_PATH_JSON = '/home/rafiz/kaggle_asl_fingerspelling_competition/datasets/asl_fingerspelling/character_to_prediction_index.json'
-with open(CHAR_PATH_JSON) as json_file:
-    LABEL_DICT = json.load(json_file)
+def get_lookup_table(CHAR_PATH_JSON):
     
-table = tf.lookup.StaticHashTable(
-    initializer=tf.lookup.KeyValueTensorInitializer(
-        keys=list(LABEL_DICT.keys()),
-        values=list(LABEL_DICT.values()),
-    ),
-    default_value=tf.constant(-1),
-    name="label_table"
-)
+    with open(CHAR_PATH_JSON) as json_file:
+        LABEL_DICT = json.load(json_file)
 
-LABEL_DICT['S'] = 59
-LABEL_DICT['E'] = 60
-LABEL_DICT['<PAD>'] = 61
-NUM_CLASSES  = len(LABEL_DICT)
+    LABEL_DICT['S'] = 59
+    LABEL_DICT['E'] = 60
+    LABEL_DICT['<PAD>'] = 61
 
+    table = tf.lookup.StaticHashTable(
+        initializer=tf.lookup.KeyValueTensorInitializer(
+            keys=list(LABEL_DICT.keys()),
+            values=list(LABEL_DICT.values()),
+        ),
+        default_value=tf.constant(-1),
+        name="label_table"
+    )
+    
+    return table
 
 ####################################################################################################################
 ############ Functions MediaPipe Landmarks ################# 
@@ -109,7 +110,7 @@ class Preprocess(tf.keras.layers.Layer):
 
 ############ Functions phrase ################# 
 
-def preprocess_phrase(phrase):
+def preprocess_phrase(phrase, table):
     phrase = 'S' + phrase + 'E'
     phrase = tf.strings.bytes_split(phrase)
     phrase = table.lookup(phrase)

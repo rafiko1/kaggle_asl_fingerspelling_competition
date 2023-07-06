@@ -3,12 +3,8 @@ import numpy as np
 from .preprocess_features import *
 from ..augmentations.augmentations import *
 
-ROWS_PER_FRAME = 543
-PAD_FRAMES = -100.
-PAD_PHRASE = 61
-
-MAX_LEN_PHRASE = 43
-MAX_LEN_FRAMES = 384
+CHAR_PATH_JSON = '/home/rafiz/asl_code/datasets/asl_fingerspelling/character_to_prediction_index.json'
+table = get_lookup_table(CHAR_PATH_JSON) #global, not needed for inference
 
 def decode_tfrec(record_bytes):
     features = tf.io.parse_single_example(record_bytes, {
@@ -17,7 +13,7 @@ def decode_tfrec(record_bytes):
         'phrase': tf.io.FixedLenFeature([], tf.string),
     })
     out = {}
-    out['coordinates']  = tf.reshape(tf.io.decode_raw(features['coordinates'], tf.float32), (-1,ROWS_PER_FRAME,3))
+    out['coordinates']  = tf.reshape(tf.io.decode_raw(features['coordinates'], tf.float32), (-1, CFG['rows_per_frame'] ,3))
     out['phrase'] = features['phrase'] 
     out['sequence_id'] = features['sequence_id']
     return out
@@ -33,44 +29,43 @@ def preprocess_tfrecord(x, augment):
     coord = filter_nans_tf(coord)
     
     if augment:
-        coord = augment_fn(coord, max_len=MAX_LEN_FRAMES)
+        coord = augment_fn(coord, max_len=CFG['max_len_frames'])
     
-    coord = tf.ensure_shape(coord, (None,ROWS_PER_FRAME,3))
-    coord = Preprocess(max_len=MAX_LEN_FRAMES)(coord)[0]
+    # coord = tf.ensure_shape(coord, (None,ROWS_PER_FRAME,3))
+    coord = Preprocess(max_len=CFG['max_len_frames'])(coord)[0]
     coord = tf.cast(coord, tf.float32)
 
-    phrase =  preprocess_phrase(x['phrase']) 
+    phrase =  preprocess_phrase(x['phrase'], table) 
     inp_phrase, out_phrase = phrase[:-1], phrase[1:]
     return (coord, inp_phrase), out_phrase 
 
 def get_tfrec_dataset(tfrecords, 
-                      # max_len_frames,
-                      # max_len_phrase,
-                      batch_size=64, 
-                      drop_remainder=False, 
-                      augment=False, shuffle=False, 
-                      repeat=False, 
+                      config,
+                      phase = 'train',
                       drop_sequences = [1975433633]):
     
+    global CFG
+    CFG = config
+    
     ds = tf.data.TFRecordDataset(tfrecords, num_parallel_reads=tf.data.AUTOTUNE, compression_type='GZIP')
-    ds = ds.map(decode_tfrec, tf.data.AUTOTUNE)
-    ds = ds.filter(lambda x: tf.reduce_all(tf.not_equal(x['sequence_id'], drop_sequences))) #TODO change to tf.equal avoid confusion train/val
-    ds = ds.map(lambda x: preprocess_tfrecord(x, augment=augment), tf.data.AUTOTUNE)
-
-    if repeat:
+    ds = ds.map(lambda x: decode_tfrec(x), tf.data.AUTOTUNE)
+    ds = ds.filter(lambda x: tf.reduce_all(tf.not_equal(x['sequence_id'], drop_sequences)))
+    ds = ds.map(lambda x: preprocess_tfrecord(x, CFG[phase]['augment']), tf.data.AUTOTUNE)
+    
+    if CFG[phase]['repeat']:
         ds = ds.repeat()
 
+    shuffle = CFG[phase]['shuffle']
     if shuffle:
         ds = ds.shuffle(shuffle)
         options = tf.data.Options()
         options.experimental_deterministic = (False)
         ds = ds.with_options(options)
-
-    if batch_size:
-        ds = ds.padded_batch(batch_size, 
-                             padding_values=((PAD_FRAMES, PAD_PHRASE), PAD_PHRASE), 
-                             padded_shapes=(([MAX_LEN_FRAMES, CHANNELS],[MAX_LEN_PHRASE]), [MAX_LEN_PHRASE]), 
-                             drop_remainder=drop_remainder)
+    
+    ds = ds.padded_batch(CFG[phase]['batch_size'], 
+                         padding_values=((CFG['pad_frames'], CFG['pad_phrase']), CFG['pad_phrase']), 
+                         padded_shapes=(([CFG['max_len_frames'], CHANNELS],CFG['max_len_phrase']), [CFG['max_len_phrase']]), 
+                         drop_remainder=CFG[phase]['drop_remainder'])
 
     ds = ds.prefetch(tf.data.AUTOTUNE)
     return ds

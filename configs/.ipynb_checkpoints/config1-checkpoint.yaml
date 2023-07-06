@@ -2,29 +2,47 @@ seed: 18
 verbose: 2
 
 # Data params
-n_epochs: 400
+rows_per_frame: 543
+max_len_frames: 384
+max_len_phrase: 43
+pad_frames: -100.
+pad_phrase: 61
+num_classes: 62
+
 n_splits: 10
+
 fold: 0
 train:
     batch_size: 512
+    drop_remainder: True
+    augment: True
+    shuffle: True
+    repeat: False
+
 val:
     batch_size: 512
-
-max_len_frames: 384
-max_len_phrase: 43
+    drop_remainder: True
+    augment: False
+    shuffle: False
+    repeat: False
 
 # Model params
-dim: 192
-drop_rate: 0.2
-ksize: 17
+n_epochs: 300
+dim: 384
+drop_rate: 0
+ksize: 34
+bn_momentum: 0.95
+expand: 2
+activation: 'gelu' # swish, relu
+num_heads: 4
 
 loss:
     name: 'SCCE_loss'
     label_smoothing: 0 
     
-loss:
-    name: 'SCCE_loss_with_smoothing'
-    label_smoothing: 0.2
+# loss:
+#     name: 'SCCE_loss_with_smoothing'
+#     label_smoothing: 0.2
     
 scheduler:
     name: 'cosine_cycle'
@@ -58,7 +76,7 @@ callbacks:
     
 
 # Output
-output_dir: 'results'
+output_dir: '/home/rafiz/kaggle_asl_fingerspelling_competition/results/'
 experiment: 'config1'
 
 
