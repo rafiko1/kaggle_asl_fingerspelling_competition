@@ -4,7 +4,7 @@ verbose: 2
 # Data params
 rows_per_frame: 543
 max_len_frames: 384
-max_len_phrase: 43
+max_len_phrase: 32
 pad_frames: -100.
 pad_phrase: 61
 num_classes: 62
@@ -28,7 +28,7 @@ val:
 
 # Model params
 n_epochs: 300
-dim: 384
+dim: 196
 drop_rate: 0
 ksize: 34
 bn_momentum: 0.95
@@ -36,9 +36,14 @@ expand: 2
 activation: 'gelu' # swish, relu
 num_heads: 4
 
+len_transformer_base_block: 1
+len_transformer_cross_block: 1
+
+len_conv1d_blocks_encoder: 3
+n_encoder_blocks: 2
+
 loss:
     name: 'SCCE_loss'
-    label_smoothing: 0 
     
 # loss:
 #     name: 'SCCE_loss_with_smoothing'
@@ -76,8 +81,8 @@ callbacks:
     
 
 # Output
-output_dir: '/home/rafiz/kaggle_asl_fingerspelling_competition/results/'
-experiment: 'config1'
+output_dir: '/home/rafiz/asl_code/results/'
+experiment: 'config2'
 
 
     
