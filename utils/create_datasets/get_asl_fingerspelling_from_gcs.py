@@ -4,7 +4,7 @@ import subprocess
 GCS_PATH = {
             'ISLR':'gs://kds-a66bb5298b56b4f027480f95fae9c7e6779d66feba454d0ff664ccc8',
             'ASLFR': 'gs://kds-7f11cf5e1079d874f10f3ee95158636d10b17443cbbf15d93d5e53a5',
-            'aslfr_train': 'gs://kds-e694bf64faf5d7bed51c516a5f6b2e2e1f3af2c6b28c3a317364d20d',
+            'aslfr_train': 'gs://kds-6dacf7136101fe1e25dbc81631dbcd3c9fc4a43a4a1a6e58936701ac',
             'aslfr_supplemental': 'gs://kds-3276d0a7bacde791b0cde48ac4efddd397a44a4faceb39b950078c22'
             }
 

@@ -78,7 +78,8 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         self.wv = tf.keras.layers.Dense(CFG['dim'])
 
         self.wo = tf.keras.layers.Dense(CFG['dim'])
-
+        self.mha_dropout = tf.keras.layers.Dropout(CFG['drop_rate'])
+        
     def split_heads(self, x, batch_size):
         """Split the last dimension into (num_heads, depth). Transpose the result such that the shape is (batch_size, num_heads, seq_len, depth)
         """
@@ -103,7 +104,7 @@ class MultiHeadAttention(tf.keras.layers.Layer):
         concat_attention = tf.reshape(scaled_attention, (batch_size, -1, self.dim))  # (batch_size, seq_len_q, d_model)
 
         output = self.wo(concat_attention)  # (batch_size, seq_len_q, d_model)
-
+        output = self.mha_dropout(output)
         return output
 
 def positional_encoding(length):
@@ -236,6 +237,22 @@ class Decoder(tf.keras.Model):
         x = self.transformer_cross_block(encoder_out,x)
         return x
 
+class LateDropout(tf.keras.layers.Layer):
+    def __init__(self):
+        super().__init__(name='LateDropout')
+        self.dropout = tf.keras.layers.Dropout(CFG['late_drop_rate'], noise_shape=None)
+      
+    def build(self, input_shape):
+        super().build(input_shape)
+        agg = tf.VariableAggregation.ONLY_FIRST_REPLICA
+        self._train_counter = tf.Variable(0, dtype="int64", aggregation=agg, trainable=False)
+
+    def call(self, inputs, training=False):
+        x = tf.cond(self._train_counter < CFG['late_drop_start_epoch'], lambda:inputs, lambda:self.dropout(inputs, training=training))
+        if training:
+            self._train_counter.assign_add(1)
+        return x
+
 def get_model(config, dtype):
     global CFG
     global DTYPE
@@ -251,6 +268,7 @@ def get_model(config, dtype):
 
     # Final feed-forward
     out = tf.keras.layers.Dense(CFG['dim']*2,activation=None, name='pre_classifier')(decoder_out)
+    out = LateDropout()(out)
     out = tf.keras.layers.Dense(CFG['num_classes'], name='classifier')(out)
     
     model = tf.keras.models.Model(inputs=[inp1, inp2], outputs=out)
