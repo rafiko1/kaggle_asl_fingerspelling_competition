@@ -14,8 +14,9 @@ def decode_tfrec(record_bytes):
     })
     out = {}
     out['coordinates']  = tf.reshape(tf.io.decode_raw(features['coordinates'], tf.float32), (-1, CFG['rows_per_frame'] ,3))
-    out['phrase'] = features['phrase'] 
+    out['phrase'] = features['phrase']
     out['sequence_id'] = features['sequence_id']
+    out['N_frames'] = len(out['coordinates'])
     return out
 
 def filter_nans_tf(x):  # ref point = landmark points
@@ -26,16 +27,23 @@ def filter_nans_tf(x):  # ref point = landmark points
 
 def preprocess_tfrecord(x, augment):
     coord = x['coordinates']
+    phrase = x['phrase']
     coord = filter_nans_tf(coord)
     
     if augment:
-        coord = augment_fn(coord, max_len=CFG['max_len_frames'])
+        if tf.random.uniform(())<CFG['augmentations']['reverse']:
+            reverse=True
+        else:
+            reverse=False
+        phrase =  preprocess_phrase(phrase, table, reverse=reverse)
+        coord, phrase = augment_fn(coord, phrase, always=False, max_len=CFG['max_len_frames'], reverse=reverse)
+    else:
+        phrase =  preprocess_phrase(phrase, table, reverse=False)
     
     # coord = tf.ensure_shape(coord, (None,ROWS_PER_FRAME,3))
     coord = Preprocess(max_len=CFG['max_len_frames'])(coord)[0]
     coord = tf.cast(coord, tf.float32)
-
-    phrase =  preprocess_phrase(x['phrase'], table) 
+    
     inp_phrase, out_phrase = phrase[:-1], phrase[1:]
     return (coord, inp_phrase), out_phrase 
 
@@ -49,7 +57,9 @@ def get_tfrec_dataset(tfrecords,
     
     ds = tf.data.TFRecordDataset(tfrecords, num_parallel_reads=tf.data.AUTOTUNE, compression_type='GZIP')
     ds = ds.map(lambda x: decode_tfrec(x), tf.data.AUTOTUNE)
+    ds = ds.filter(lambda x: tf.reduce_all(tf.math.greater(x['N_frames'], CFG['min_number_frames'])))
     ds = ds.filter(lambda x: tf.reduce_all(tf.not_equal(x['sequence_id'], drop_sequences)))
+
     ds = ds.map(lambda x: preprocess_tfrecord(x, CFG[phase]['augment']), tf.data.AUTOTUNE)
     
     if CFG[phase]['repeat']:

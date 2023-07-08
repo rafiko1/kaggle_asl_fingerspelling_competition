@@ -110,8 +110,11 @@ class Preprocess(tf.keras.layers.Layer):
 
 ############ Functions phrase ################# 
 
-def preprocess_phrase(phrase, table):
-    phrase = 'S' + phrase + 'E'
+def preprocess_phrase(phrase, table, reverse=False):
+    if reverse:
+        phrase = 'E' + phrase + 'S'
+    else:
+        phrase = 'S' + phrase + 'E'
     phrase = tf.strings.bytes_split(phrase)
     phrase = table.lookup(phrase)
     return phrase

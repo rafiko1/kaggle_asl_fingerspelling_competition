@@ -26,7 +26,7 @@ def get_callbacks(CFG, model):
         callbacks.append(logger_cb)
     
     if 'ckpt_cb' in CFG['callbacks']:
-        ckpt_cb = tf.keras.callbacks.ModelCheckpoint(f'{OUT_DIR}/fold{FOLD}-{{epoch:02d}}.h5', 
+        ckpt_cb = tf.keras.callbacks.ModelCheckpoint(f'{OUT_DIR}/fold{FOLD}-best.h5', 
                                                      monitor='val_loss', verbose=0,
                                                      save_best_only=True,
                                                      save_weights_only=True, mode='min',
@@ -48,7 +48,7 @@ def get_callbacks(CFG, model):
         average_opt = 'swa'
         
     if 'swa2_cb' in CFG['callbacks']:
-        swa_cb = SWA(start_epoch=2, 
+        swa_cb = SWA(start_epoch=30, 
                      lr_schedule='manual', 
                      batch_size=CFG['train']['batch_size'], # needed when using batch norm
                      verbose=1)

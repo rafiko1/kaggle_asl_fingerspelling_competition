@@ -4,9 +4,10 @@ verbose: 2
 
 # Output
 output_dir: '/home/rafiz/asl_code/results/'
-experiment: 'config3'
+experiment: 'config4'
 
 # Data params
+min_number_frames: 1
 rows_per_frame: 543
 max_len_frames: 384
 max_len_phrase: 32
@@ -32,9 +33,11 @@ val:
     repeat: False
 
 # Model params
-n_epochs: 200
+n_epochs: 300
 save_period: 5 # save every N epochs
-dim: 196
+encoder_dim: 312
+decoder_dim: 196
+
 drop_rate: 0
 
 ksize: 64
@@ -43,7 +46,7 @@ expand: 2
 activation: 'gelu' # swish, relu
 num_heads: 4
 
-late_drop_rate: 0.05
+late_drop_rate: 0.1
 late_drop_start_epoch: 30
 
 len_transformer_base_block: 1
@@ -52,15 +55,16 @@ len_transformer_cross_block: 1
 len_conv1d_blocks_encoder: 3
 n_encoder_blocks: 2
 
-
+augmentations:
+    reverse: 0
+    resample: 0.8
+    flip_lr: 0.5
+    spatial_random_affine: 0.75
+    temporal_mask: 0.5
+    spatial_mask: 0.5
+    
 loss:
-    name: 'CTC_loss'
-
-metric:
     name: 'SCCE_loss'
-
-# loss:
-#     name: 'SCCE_loss'
     
 # loss:
 #     name: 'SCCE_loss_with_smoothing'
@@ -70,7 +74,7 @@ scheduler:
     name: 'cosine_cycle'
     warmup: 0
     lr_min: 1e-6
-    lr_max: 1e-3
+    lr_max: 2e-3
     wd_ratio: 0.1
     num_cycles: 0.5
 
@@ -102,7 +106,7 @@ learners:
     # awp:
     #     False
     awp:
-        lambda: 0.05
+        lambda: 0.1
         start_epoch: 30
     
 

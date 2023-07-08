@@ -1,6 +1,7 @@
 import tensorflow as tf
 from ..preprocessing.preprocess_features import *
 
+ # TODO modify all to np.random?
 def interp1d_(x, target_len, method='random'):
     length = tf.shape(x)[1]
     target_len = tf.maximum(1,target_len)
@@ -124,7 +125,11 @@ def spatial_mask(x, size=(0.2,0.4), mask_value=float('nan')):
     x = tf.where(mask[...,None], mask_value, x)
     return x
 
-def augment_fn(x, always=False, max_len=None):
+def augment_fn(x, phrase, always=False, max_len=None, reverse=True):
+    if reverse:
+        x = tf.reverse(x, [0]) 
+        phrase = tf.reverse(phrase, [0])
+
     if tf.random.uniform(())<0.8 or always:
         x = resample(x, (0.5,1.5))
     if tf.random.uniform(())<0.5 or always:
@@ -137,4 +142,5 @@ def augment_fn(x, always=False, max_len=None):
         x = temporal_mask(x)
     if tf.random.uniform(())<0.5 or always:
         x = spatial_mask(x)
-    return x
+        
+    return x, phrase
