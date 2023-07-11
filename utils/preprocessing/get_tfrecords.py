@@ -48,7 +48,7 @@ def preprocess_tfrecord(x, augment, return_inp_phrase=True):
     if return_inp_phrase:
         return (coord, inp_phrase), out_phrase
     else:
-        return (coord, out_phrase[:-1]), out_phrase[:-1] #coord, out_phrase[:-1]
+        return coord, out_phrase[:-1] #(coord, out_phrase[:-1]), out_phrase[:-1] #coord, out_phrase[:-1]
 
 def get_tfrec_dataset(tfrecords, 
                       config,
