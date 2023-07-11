@@ -3,7 +3,7 @@ import numpy as np
 from .preprocess_features import *
 from ..augmentations.augmentations import *
 
-CHAR_PATH_JSON = '/home/rafiz/asl_code/datasets/asl_fingerspelling/character_to_prediction_index.json'
+CHAR_PATH_JSON = 'asl_code/datasets/asl_fingerspelling/character_to_prediction_index.json'
 table = get_lookup_table(CHAR_PATH_JSON) #global, not needed for inference
 
 def decode_tfrec(record_bytes):
