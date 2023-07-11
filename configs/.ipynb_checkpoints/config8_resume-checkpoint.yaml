@@ -1,0 +1,120 @@
+debug: False
+seed: 18
+verbose: 2
+
+# Output
+output_dir: '/home/rafiz/asl_code/results/'
+experiment: 'config8_resume'
+
+# Data params
+min_number_frames: 1
+rows_per_frame: 543
+max_len_frames: 384
+max_len_phrase: 32
+pad_frames: -100.
+pad_phrase: 61
+num_classes: 62
+
+n_splits: 20
+
+fold: 0
+train:
+    batch_size: 512
+    drop_remainder: True
+    augment: False
+    shuffle: True
+    repeat: False
+
+val:
+    batch_size: 36
+    drop_remainder: True
+    augment: False
+    shuffle: False
+    repeat: False
+
+# Model params
+n_epochs: 200
+save_period: 5 # save every N epochs
+encoder_dim: 192
+decoder_dim: 192
+mha_dim: 192
+
+drop_rate: 0
+
+ksize: 64
+bn_momentum: 0.95
+expand: 2
+activation: 'gelu' # swish, relu
+num_heads: 4
+
+late_drop_rate: 0.15
+late_drop_start_epoch: 5
+
+len_transformer_base_block: 1
+len_transformer_cross_block: 1
+
+len_conv1d_blocks_encoder: 3
+n_encoder_blocks: 2
+
+augmentations:
+    reverse: 0
+    resample: 0.8
+    flip_lr: 0.5
+    spatial_random_affine: 0.75
+    temporal_mask: 0.5
+    spatial_mask: 0.5
+    
+loss:
+    name: 'SCCE_loss'
+    
+# loss:
+#     name: 'SCCE_loss_with_smoothing'
+#     label_smoothing: 0.2
+    
+# scheduler:
+#     name: 'cosine_cycle'
+#     warmup: 0
+#     lr_min: 1e-6
+#     lr_max: 1e-3
+#     wd_ratio: 0.1
+#     num_cycles: 0.5
+
+scheduler:
+    name: 'one_cycle'
+    warmup: 0
+    lr_min: 1e-6
+    lr_max: 1e-3
+    weight_decay: 0.1
+    decay_type: 'cosine'
+    
+optimizer:
+    name: 'adam'
+  
+# optimizer:
+#     name: 'radam'
+#     sma_threshold: 4
+#     sync_period: 5
+
+callbacks:
+    - 'logger_cb'
+    - 'ckpt_cb'
+    # - 'swa1_cb'
+    # - 'swa2_cb'
+    # - 'lr_cb'
+    # - 'wd_cb'
+
+swa_start_epoch: 20
+
+learners:
+    # awp:
+    #     False
+    awp:
+        lambda: 0.15
+        start_epoch: 5
+    
+
+    
+
+
+
+    

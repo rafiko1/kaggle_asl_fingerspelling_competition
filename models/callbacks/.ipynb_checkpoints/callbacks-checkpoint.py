@@ -28,10 +28,10 @@ def get_callbacks(CFG, model):
     if 'ckpt_cb' in CFG['callbacks']:
         ckpt_cb = tf.keras.callbacks.ModelCheckpoint(f'{OUT_DIR}/fold{FOLD}-best.h5', 
                                                      monitor='val_loss', verbose=0,
-                                                     save_best_only=True,
+                                                     save_best_only=False,
                                                      save_weights_only=True, mode='min',
                                                      save_freq='epoch',
-                                                     # period = CFG['save_period']
+                                                     period = CFG['save_period']
                                                     )
         callbacks.append(ckpt_cb)
     
@@ -48,7 +48,7 @@ def get_callbacks(CFG, model):
         average_opt = 'swa'
         
     if 'swa2_cb' in CFG['callbacks']:
-        swa_cb = SWA(start_epoch=30, 
+        swa_cb = SWA(start_epoch=CFG['swa_start_epoch'], 
                      lr_schedule='manual', 
                      batch_size=CFG['train']['batch_size'], # needed when using batch norm
                      verbose=1)
@@ -59,7 +59,9 @@ def get_callbacks(CFG, model):
                             num_warmup_steps=CFG['scheduler']['warmup'], 
                             lr_max=CFG['scheduler']['lr_max'], 
                             num_training_steps = CFG['n_epochs'],
-                            num_cycles=CFG['scheduler']['num_cycles']) 
+                            num_cycles=CFG['scheduler']['num_cycles'],
+                            warmup_method = CFG['scheduler']['warmup_method']
+                           ) 
                        for step in range(CFG['n_epochs'])]
         
         # Plot the scheduler 

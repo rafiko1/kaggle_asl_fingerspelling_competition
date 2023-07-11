@@ -25,7 +25,7 @@ def filter_nans_tf(x):  # ref point = landmark points
     x = tf.boolean_mask(x, mask, axis=0)
     return x
 
-def preprocess_tfrecord(x, augment):
+def preprocess_tfrecord(x, augment, return_inp_phrase=True):
     coord = x['coordinates']
     phrase = x['phrase']
     coord = filter_nans_tf(coord)
@@ -45,7 +45,10 @@ def preprocess_tfrecord(x, augment):
     coord = tf.cast(coord, tf.float32)
     
     inp_phrase, out_phrase = phrase[:-1], phrase[1:]
-    return (coord, inp_phrase), out_phrase 
+    if return_inp_phrase:
+        return (coord, inp_phrase), out_phrase
+    else:
+        return (coord, out_phrase[:-1]), out_phrase[:-1] #coord, out_phrase[:-1]
 
 def get_tfrec_dataset(tfrecords, 
                       config,
@@ -60,7 +63,10 @@ def get_tfrec_dataset(tfrecords,
     ds = ds.filter(lambda x: tf.reduce_all(tf.math.greater(x['N_frames'], CFG['min_number_frames'])))
     ds = ds.filter(lambda x: tf.reduce_all(tf.not_equal(x['sequence_id'], drop_sequences)))
 
-    ds = ds.map(lambda x: preprocess_tfrecord(x, CFG[phase]['augment']), tf.data.AUTOTUNE)
+    if CFG['model'] == 'encoder':
+        ds = ds.map(lambda x: preprocess_tfrecord(x, CFG[phase]['augment'], return_inp_phrase=False), tf.data.AUTOTUNE)
+    elif CFG['model'] == 'encoder-decoder':
+        ds = ds.map(lambda x: preprocess_tfrecord(x, CFG[phase]['augment'], return_inp_phrase=True), tf.data.AUTOTUNE)
     
     if CFG[phase]['repeat']:
         ds = ds.repeat()
@@ -72,10 +78,21 @@ def get_tfrec_dataset(tfrecords,
         options.experimental_deterministic = (False)
         ds = ds.with_options(options)
     
-    ds = ds.padded_batch(CFG[phase]['batch_size'], 
-                         padding_values=((CFG['pad_frames'], CFG['pad_phrase']), CFG['pad_phrase']), 
-                         padded_shapes=(([CFG['max_len_frames'], CHANNELS],CFG['max_len_phrase']), [CFG['max_len_phrase']]), 
-                         drop_remainder=CFG[phase]['drop_remainder'])
+    if CFG['model'] == 'encoder':
+        # ds = ds.padded_batch(CFG[phase]['batch_size'], 
+        #              padding_values=(CFG['pad_frames'], CFG['pad_phrase']), 
+        #              padded_shapes=([CFG['max_len_frames'], CHANNELS], [CFG['max_len_phrase']]), 
+        #              drop_remainder=CFG[phase]['drop_remainder'])
+        ds = ds.padded_batch(CFG[phase]['batch_size'], 
+                             padding_values=((CFG['pad_frames'], CFG['pad_phrase']), CFG['pad_phrase']), 
+                             padded_shapes=(([CFG['max_len_frames'], CHANNELS],CFG['max_len_phrase']), [CFG['max_len_phrase']]), 
+                             drop_remainder=CFG[phase]['drop_remainder'])
+
+    elif CFG['model'] == 'encoder-decoder':
+        ds = ds.padded_batch(CFG[phase]['batch_size'], 
+                             padding_values=((CFG['pad_frames'], CFG['pad_phrase']), CFG['pad_phrase']), 
+                             padded_shapes=(([CFG['max_len_frames'], CHANNELS],CFG['max_len_phrase']), [CFG['max_len_phrase']]), 
+                             drop_remainder=CFG[phase]['drop_remainder'])
 
     ds = ds.prefetch(tf.data.AUTOTUNE)
     return ds

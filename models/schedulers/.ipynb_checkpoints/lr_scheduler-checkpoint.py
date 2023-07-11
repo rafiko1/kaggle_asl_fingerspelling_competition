@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # From https://www.kaggle.com/code/markwijkhuizen/aslfr-transformer-training-inference#Transformer
-def lrfn(current_step, num_warmup_steps, lr_max, num_training_steps, num_cycles=0.50):
+def lrfn(current_step, num_warmup_steps, lr_max, num_training_steps, num_cycles=0.50, warmup_method = 'log'):
     if current_step < num_warmup_steps:
-        if WARMUP_METHOD == 'log':
-            return lr_max * 0.10 ** (num_warmup_steps - current_step)
+        if warmup_method == 'log':
+            return float(lr_max) * 0.10 ** (float(num_warmup_steps) - float(current_step))
         else:
-            return lr_max * 2 ** -(num_warmup_steps - current_step)
+            return float(lr_max) * 2 ** -(float(num_warmup_steps) - float(current_step))
     else:
         progress = float(current_step - num_warmup_steps) / float(max(1, num_training_steps - num_warmup_steps))
         lr_max = float(lr_max)
