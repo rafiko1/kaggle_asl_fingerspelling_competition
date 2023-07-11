@@ -1,0 +1,129 @@
+debug: False
+seed: 18
+verbose: 1
+
+# Output
+output_dir: '/home/rafiz/asl_code/results/'
+experiment: 'config10'
+
+# Model to use
+model: 'encoder' # encoder: encoder only. encoder-decoder: both
+
+# Data params
+min_number_frames: 1
+rows_per_frame: 543
+max_len_frames: 384
+max_len_phrase: 32
+pad_frames: -100.
+pad_phrase: 59
+num_classes: 60
+
+n_splits: 20
+
+fold: 0
+train:
+    batch_size: 128
+    drop_remainder: True
+    augment: True
+    shuffle: True
+    repeat: True
+
+val:
+    batch_size: 128
+    drop_remainder: True
+    augment: False
+    shuffle: False
+    repeat: True
+
+# Model params
+n_epochs: 200
+save_period: 10 # save every N epochs
+encoder_dim: 192
+decoder_dim: 192
+mha_dim: 192
+
+drop_rate: 0
+mha_dropout: 0.2
+
+ksize: 64
+bn_momentum: 0.95
+expand: 2
+activation: 'gelu' # swish, relu
+num_heads: 4
+
+late_drop_rate: 0.5
+late_drop_start_epoch: 50
+
+len_transformer_base_block: 1
+len_transformer_cross_block: 1
+
+len_conv1d_blocks_encoder: 3
+n_encoder_blocks: 2
+
+# avg_pool_size: 6
+
+augmentations:
+    reverse: 0
+    resample: 0.8
+    flip_lr: 0.5
+    spatial_random_affine: 0.75
+    temporal_mask: 0.5
+    spatial_mask: 0.5
+    
+loss:
+    name: 'SCCE_loss'
+    
+# loss:
+#     name: 'SCCE_loss_with_smoothing'
+#     label_smoothing: 0.2
+    
+scheduler:
+    name: 'cosine_cycle'
+    warmup: 10
+    lr_min: 1e-6
+    lr_max: 1e-3
+    wd_ratio: 0.1
+    num_cycles: 0.5
+    warmup_method: exp
+
+ scheduler:
+     name: 'one_cycle'
+     warmup: 0
+     lr_min: 1e-6
+     lr_max: 1e-3
+     weight_decay: 0.1
+     decay_type: 'cosine'
+    
+optimizer:
+    name: 'adam'
+    clipvalue: 10
+    clipnorm: 1
+  
+# optimizer:
+#     name: 'radam'
+#     sma_threshold: 4
+#     sync_period: 5
+
+callbacks:
+    - 'logger_cb'
+    - 'ckpt_cb'
+    # - 'swa1_cb'
+    # - 'swa2_cb'
+#    - 'lr_cb'
+#    - 'wd_cb'
+
+swa_start_epoch: 20
+
+learners:
+    # awp:
+    #     False
+    awp:
+        lambda: 0.1
+        start_epoch: 25
+    
+
+    
+
+
+
+    
