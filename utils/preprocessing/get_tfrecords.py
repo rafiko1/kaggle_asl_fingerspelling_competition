@@ -79,14 +79,14 @@ def get_tfrec_dataset(tfrecords,
         ds = ds.with_options(options)
     
     if CFG['model'] == 'encoder':
-        # ds = ds.padded_batch(CFG[phase]['batch_size'], 
-        #              padding_values=(CFG['pad_frames'], CFG['pad_phrase']), 
-        #              padded_shapes=([CFG['max_len_frames'], CHANNELS], [CFG['max_len_phrase']]), 
-        #              drop_remainder=CFG[phase]['drop_remainder'])
         ds = ds.padded_batch(CFG[phase]['batch_size'], 
-                             padding_values=((CFG['pad_frames'], CFG['pad_phrase']), CFG['pad_phrase']), 
-                             padded_shapes=(([CFG['max_len_frames'], CHANNELS],CFG['max_len_phrase']), [CFG['max_len_phrase']]), 
-                             drop_remainder=CFG[phase]['drop_remainder'])
+                     padding_values=(CFG['pad_frames'], CFG['pad_phrase']), 
+                     padded_shapes=([CFG['max_len_frames'], CHANNELS], [CFG['max_len_phrase']]), 
+                     drop_remainder=CFG[phase]['drop_remainder'])
+        # ds = ds.padded_batch(CFG[phase]['batch_size'], 
+        #                      padding_values=((CFG['pad_frames'], CFG['pad_phrase']), CFG['pad_phrase']), 
+        #                      padded_shapes=(([CFG['max_len_frames'], CHANNELS],CFG['max_len_phrase']), [CFG['max_len_phrase']]), 
+        #                      drop_remainder=CFG[phase]['drop_remainder'])
 
     elif CFG['model'] == 'encoder-decoder':
         ds = ds.padded_batch(CFG[phase]['batch_size'], 
