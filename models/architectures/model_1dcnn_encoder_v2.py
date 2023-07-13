@@ -221,7 +221,7 @@ class CTCLayer(tf.keras.layers.Layer):
         # Compute the training-time loss value and add it
         # to the layer using `self.add_loss()`.
         label_length = tf.reduce_sum(tf.cast(labels != CFG['pad_phrase'], tf.int32), axis=-1)
-        logit_length = tf.ones(tf.shape(logits)[0], dtype=tf.int32) * tf.shape(logits)[1] #tf.reduce_sum(tf.cast(inp1 != CFG['pad_frames'], tf.int32), axis=1)[:,0]
+        logit_length = tf.ones(tf.shape(logits)[0], dtype=tf.int32) * tf.shape(logits)[1] #tf.reduce_sum(tf.cast(inp1 != CFG['pad_frames'], tf.int32), axis=1)[:,0] #tf.ones(tf.shape(logits)[0], dtype=tf.int32) * tf.shape(logits)[1] #tf.reduce_sum(tf.cast(inp1 != CFG['pad_frames'], tf.int32), axis=1)[:,0]
     
         loss = self.loss_fn(
                 labels=tf.cast(labels, tf.int32),

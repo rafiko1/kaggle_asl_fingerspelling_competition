@@ -4,7 +4,7 @@ verbose: 1
 
 # Output
 output_dir: '/home/rafiz/asl_code/results/'
-experiment: 'config9'
+experiment: 'config11'
 
 # Model to use
 model: 'encoder' # encoder: encoder only. encoder-decoder: both
@@ -24,7 +24,7 @@ fold: 0
 train:
     batch_size: 512
     drop_remainder: True
-    augment: True
+    augment: False
     shuffle: True
     repeat: False
 
@@ -38,12 +38,12 @@ val:
 # Model params
 n_epochs: 200
 save_period: 10 # save every N epochs
-encoder_dim: 192
-decoder_dim: 192
-mha_dim: 192
+encoder_dim: 384
+# decoder_dim: 384
+mha_dim: 384
 
-drop_rate: 0.2
-mha_dropout: 0.2
+drop_rate: 0
+mha_dropout: 0
 
 ksize: 64
 bn_momentum: 0.95
@@ -55,12 +55,11 @@ late_drop_rate: 0.5
 late_drop_start_epoch: 30
 
 len_transformer_base_block: 1
-len_transformer_cross_block: 1
 
 len_conv1d_blocks_encoder: 3
-n_encoder_blocks: 2
+n_encoder_blocks: 4
 
-# avg_pool_size: 6
+avg_pool_size: 6
 
 augmentations:
     reverse: 0
@@ -79,12 +78,12 @@ loss:
     
 scheduler:
     name: 'cosine_cycle'
-    warmup: 10
+    warmup: 0
     lr_min: 1e-6
     lr_max: 1e-3
     wd_ratio: 0.1
     num_cycles: 0.5
-    warmup_method: exp
+    warmup_method: log
 
 # scheduler:
 #     name: 'one_cycle'
